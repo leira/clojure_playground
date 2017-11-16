@@ -25,6 +25,8 @@
 
 (defn pick-peaks
   [coll]
-  (let [peaks (pick-peaks-by second (map-indexed vector coll))]
+  (let [peaks (sequence (comp (map-indexed vector)
+                              (pick-peaks-by second))
+                        coll)]
     {:pos (map first peaks)
      :peaks (map second peaks)}))
