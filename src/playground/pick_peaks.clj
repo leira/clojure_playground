@@ -2,31 +2,18 @@
 
 ;; https://www.codewars.com/kata/pick-peaks
 
-(defn pick-peaks-by
-  ([keyfn]
-   (fn [xf]
-     (let [pv (volatile! [::none false])]
-       (fn
-         ([] (xf))
-         ([result] (xf result))
-         ([result input]
-            (let [[prior ascending] @pv
-                  ik (keyfn input)
-                  pk (if (= prior ::none) (inc ik) (keyfn prior))]
-              ;(println :r result :i input :p prior :a ascending)
-              (if (= pk ik)
-                  result
-                  (do
-                    (vreset! pv [input (< pk ik)])
-                    (if (and ascending (> pk ik))
-                        (xf result prior)
-                        result)))))))))
-  ([keyfn coll] (sequence (pick-peaks-by keyfn) coll)))
-
 (defn pick-peaks
   [coll]
-  (let [peaks (sequence (comp (map-indexed vector)
-                              (pick-peaks-by second))
-                        coll)]
-    {:pos (map first peaks)
-     :peaks (map second peaks)}))
+  (let [pos (->> coll
+                 (partition 2 1)
+                 (map-indexed #(let [[p, v] %2]
+                                 (if (= p v)
+                                     -1
+                                     (inc %1))))
+                 (filter #(not= % -1))
+                 (partition 3 1)
+                 (filter #(let [[p v n] (map (partial nth coll) %)]
+                            (and (< p v)
+                                 (> v n))))
+                 (map second))]
+    {:pos pos, :peaks (map (partial nth coll) pos)}))
