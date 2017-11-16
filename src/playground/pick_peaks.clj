@@ -10,7 +10,7 @@
                                  (if (= p v)
                                      -1
                                      (inc %1))))
-                 (filter #(not= % -1))
+                 (filter (partial not= -1))
                  (partition 3 1)
                  (filter #(let [[p v n] (map (partial nth coll) %)]
                             (and (< p v)
