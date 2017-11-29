@@ -2,21 +2,24 @@
 
 ; https://www.codewars.com/kata/twice-linear/train/clojure
 
-(defn dblp [x] (inc (* x 2)))
-(defn tplp [x] (inc (* x 3)))
+(defn yf [x] (inc (* x 2)))
+(defn zf [x] (inc (* x 3)))
 
 (defn gen-dbls
-  ([] (lazy-seq (gen-dbls (sorted-set 1))))
-  ([bases]
-    (let [b (first bases)]
-      (cons b 
+  ([] (cons 1 (lazy-seq (gen-dbls [1] []))))
+  ([bases tbd]
+    (let [x (first bases)
+          y (yf x)
+          z (zf x)
+          ntbd (apply sorted-set (conj tbd y z))
+          determined (subseq ntbd <= y)]
+      (concat determined 
             (lazy-seq
-             (gen-dbls (conj (apply sorted-set 
-                                    (rest bases))
-                             (dblp b)
-                             (tplp b))))))))
+             (gen-dbls (concat (rest bases) determined)
+                       (subseq ntbd > y)))))))
 
 (defn dblinear [n]
     (last (take (inc n) (gen-dbls))))
 
-; (dblinear 1000) => 8488
+;(take 10 (gen-dbls))
+(dblinear 1000)
