@@ -1,4 +1,4 @@
-(ns playground.pick-peaks)
+(ns codewars.pick-peaks)
 
 ;; https://www.codewars.com/kata/pick-peaks
 

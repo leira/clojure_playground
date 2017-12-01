@@ -1,4 +1,4 @@
-(ns playground.sumofcubes)
+(ns codewars.sumofcubes)
 
 ;; https://www.codewars.com/kata/build-a-pile-of-cubes/
 

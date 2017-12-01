@@ -1,4 +1,4 @@
-(ns playground.tosmallest)
+(ns codewars.tosmallest)
 
 ;; https://www.codewars.com/kata/find-the-smallest/clojure
 

@@ -1,4 +1,4 @@
-(ns playground.dblinear)
+(ns codewars.dblinear)
 
 ; https://www.codewars.com/kata/twice-linear/train/clojure
 

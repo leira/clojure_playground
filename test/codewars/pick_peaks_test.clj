@@ -1,6 +1,6 @@
-(ns playground.pick-peaks-test
+(ns codewars.pick-peaks-test
   (:require [clojure.test :refer :all]
-            [playground.pick-peaks :refer :all]))
+            [codewars.pick-peaks :refer :all]))
 
 (deftest test-pick-peaks
   (testing "should support finding peaks"

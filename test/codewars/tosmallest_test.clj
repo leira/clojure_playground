@@ -1,6 +1,6 @@
-(ns playground.tosmallest-test
+(ns codewars.tosmallest-test
   (:require [clojure.test :refer :all]
-            [playground.tosmallest :refer :all]))
+            [codewars.tosmallest :refer :all]))
 
 (defn dotest [n ans]
   (is (= ans (smallest n))))

@@ -1,6 +1,6 @@
-(ns playground.sumofcubes-test
+(ns codewars.sumofcubes-test
   (:require [clojure.test :refer :all]
-            [playground.sumofcubes :refer :all]))
+            [codewars.sumofcubes :refer :all]))
 
 (deftest a-test1
   (testing "test1"
