@@ -1,10 +1,11 @@
 (def project 'playground)
 (def version "0.1.0-SNAPSHOT")
 
-(set-env! :resource-paths #{"resources" "src"}
+(set-env! :resource-paths #{"src"}
           :source-paths   #{"test"}
           :dependencies   '[[org.clojure/clojure "1.8.0"]
-                            [adzerk/boot-test "RELEASE" :scope "test"]])
+                            [adzerk/boot-test "RELEASE" :scope "test"]
+                            [com.taoensso/tufte "1.1.2"]])
 
 ; (task-options!
 ;  aot {:namespace   #{'playground.core}}
