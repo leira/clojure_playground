@@ -1,6 +1,6 @@
-(ns playground.sumbyfactors-test
+(ns codewars.sumbyfactors-test
   (:require [clojure.test :refer :all]
-            [playground.sumbyfactors :refer :all]))
+            [codewars.sumbyfactors :refer :all]))
 
 (deftest a-test1
   (testing "Test1"

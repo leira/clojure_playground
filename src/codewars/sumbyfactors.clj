@@ -1,4 +1,4 @@
-(ns playground.sumbyfactors)
+(ns codewars.sumbyfactors)
 
 ;; https://www.codewars.com/kata/sum-by-factors/clojure
 
