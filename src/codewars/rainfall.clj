@@ -1,6 +1,8 @@
 (ns codewars.rainfall
   (:require [clojure.string :as str]))
 
+;; https://www.codewars.com/kata/rainfall
+
 (defn parse-ln [ln]
   (let [[town hist] (str/split ln #":")]
     [town
