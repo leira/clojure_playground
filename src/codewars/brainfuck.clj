@@ -12,21 +12,16 @@
 ;; [ if the byte at the data pointer is zero, then instead of moving the instruction pointer forward to the next command, jump it forward to the command after the matching ] command.
 ;; ] if the byte at the data pointer is nonzero, then instead of moving the instruction pointer forward to the next command, jump it back to the command after the matching [ command.
 
-(defn extend-mem [mem addr]
-  (if (>= addr (count mem))
-             (into mem (repeat (inc (- addr (count mem))) 0))
-             mem))
+; TODOs
+; x use map for memory, don't need to extend-mem every time
+; - pass mem dp code ip and input in parameters directly, save the getter every time
+; - return output directly, use lazy-seq for output
+; - use loop inside function, rather than multifunction
 
-(defn read-mem [mem addr] (get mem addr 0))
-(defn write-mem [mem addr v] (assoc (extend-mem mem addr) addr v))
+(defn mem-read [mem addr] (get mem addr 0))
+(defn mem-write [mem addr v] (assoc mem addr v))
+(defn mem-op [mem addr op] (mem-write mem addr (mod (op (mem-read mem addr)) 256)))
 
-
-(defn update-mem [state f]
-  (assoc state
-         :mem
-         (write-mem (:mem state)
-                    (:addr state)
-                    (f (read-mem (:mem state) (:addr state))))))
 
 (defn next-cmd [state]
   (update state :pc inc))
@@ -64,22 +59,22 @@
   (next-cmd (update state :addr #(if (pos? %) (dec %) %))))
 
 (defn increase [state]
-  (next-cmd (update-mem state #(mod (inc %) 256))))
+  (next-cmd (assoc state :mem (mem-op (:mem state) (:addr state) inc))))
 
 (defn decrease [state]
-  (next-cmd (update-mem state #(mod (dec %) 256))))
+  (next-cmd (assoc state :mem (mem-op (:mem state) (:addr state) dec))))
 
 (defn output [state]
   (next-cmd (update state
                     :output
                     conj
-                    (char (read-mem (:mem state)
+                    (char (mem-read (:mem state)
                                     (:addr state))))))
 
 (defn input [state]
   (next-cmd (assoc state
                    :mem
-                   (write-mem (:mem state)
+                   (mem-write (:mem state)
                               (:addr state)
                               (int (if (empty? (:input state))
                                        (throw (Exception. "No More Input"))
@@ -87,7 +82,7 @@
                    :input (rest (:input state)))))
 
 (defn jmp-fwd [state]
-  (if (zero? (read-mem (:mem state)
+  (if (zero? (mem-read (:mem state)
                        (:addr state)))
       (assoc state
              :pc
@@ -95,7 +90,7 @@
       (next-cmd state)))
 
 (defn jmp-back [state]
-  (if (zero? (read-mem (:mem state)
+  (if (zero? (mem-read (:mem state)
                        (:addr state)))
       (next-cmd state)
       (assoc state
@@ -103,10 +98,15 @@
              (match-jump-back (:code state) (:pc state)))))
 
 
+(defn dump-mem [mem dp]
+  (str/join " "
+            (map #(if (= dp %)
+                      (str \* (mem-read mem %) \*)
+                      (mem-read mem %))
+                  (range (inc (apply max (conj (keys mem) dp)))))))
+
 (defn print-state [state]
-  (println "mem:" (assoc (extend-mem (:mem state) (:addr state))
-                         (:addr state)
-                         [(read-mem (:mem state) (:addr state))]))
+  (println "mem:" (dump-mem (:mem state) (:addr state)))
   (let [s (- (:pc state) 10)
         st (if (neg? s) 0 s)
         e (+ (:pc state) 10)
@@ -117,7 +117,7 @@
 
 
 (defn execute [state]
-;  (print-state state)
+  ;(print-state state)
   (if (>= (:pc state) (count (:code state)))
       (:output state)
       (recur ((case (get (:code state) (:pc state))
@@ -142,7 +142,7 @@
   (try
    (str/join "" (execute {:code source
                           :pc 0
-                          :mem [0]
+                          :mem {}
                           :addr 0
                           :input input
                           :output []}))
@@ -152,3 +152,6 @@
 
 ;(execute-string ",>+>>>>++++++++++++++++++++++++++++++++++++++++++++>++++++++++++++++++++++++++++++++<<<<<<[>[>>>>>>+>+<<<<<<<-]>>>>>>>[<<<<<<<+>>>>>>>-]<[>++++++++++[-<-[>>+>+<<<-]>>>[<<<+>>>-]+<[>[-]<[-]]>[<<[>>>+<<<-]>>[-]]<<]>>>[>>+>+<<<-]>>>[<<<+>>>-]+<[>[-]<[-]]>[<<+>>[-]]<<<<<<<]>>>>>[++++++++++++++++++++++++++++++++++++++++++++++++.[-]]++++++++++<[->-<]>++++++++++++++++++++++++++++++++++++++++++++++++.[-]<<<<<<<<<<<<[>>>+>+<<<<-]>>>>[<<<<+>>>>-]<-[>>.>.<<<[-]]<<[>>+>+<<<-]>>>[<<<+>>>-]<<[<+>-]>[<+>-]<<<-]"
 ;                "\n")
+
+;(execute-string ".>.+.<." "")
+;(increase {:mem {} :addr 2 :pc 1})
