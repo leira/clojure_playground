@@ -16,39 +16,26 @@
 ; x use map for memory, don't need to extend-mem every time
 ; - pass mem dp code ip and input in parameters directly, save the getter every time
 ; - return output directly, use lazy-seq for output
-; - use loop inside function, rather than multifunction
+; * use loop inside function, rather than multifunction
 
 (defn mem-read [mem addr] (get mem addr 0))
 (defn mem-write [mem addr v] (assoc mem addr v))
 (defn mem-op [mem addr op] (mem-write mem addr (mod (op (mem-read mem addr)) 256)))
 
 
+(defn match-jmp [code pc op]
+  (loop [nb 0 pc pc]
+    (let [nb' (case (get code pc)
+                \[ (dec nb)
+                \] (inc nb)
+                nil 0       ; error, need to stop
+                nb)]
+      (if (zero? nb')
+          (inc pc)
+          (recur nb' (op pc))))))
+
 (defn next-cmd [state]
   (update state :pc inc))
-
-(defn match-jump-fwd
-  ([code pc] (match-jump-fwd code (inc pc) 0))
-  ([code pc lbcount]
-     (if (>= pc (count code))
-         (throw (Exception. "No Matching Jump Point"))
-         (case (get code pc)
-           \] (if (zero? lbcount)
-                   pc
-                   (recur code (inc pc) (dec lbcount)))
-           \[ (recur code (inc pc) (inc lbcount))
-           (recur code (inc pc) lbcount)))))
-
-(defn match-jump-back
-  ([code pc] (match-jump-back code (dec pc) 0))
-  ([code pc rbcount]
-     (if (< pc 0)
-         (throw (Exception. "No Matching Jump Point"))
-         (case (get code pc)
-           \[ (if (zero? rbcount)
-                   pc
-                   (recur code (dec pc) (dec rbcount)))
-           \] (recur code (dec pc) (inc rbcount))
-           (recur code (dec pc) rbcount)))))
 
 
 ;; commands
@@ -86,7 +73,7 @@
                        (:addr state)))
       (assoc state
              :pc
-             (match-jump-fwd (:code state) (:pc state)))
+             (match-jmp (:code state) (:pc state) inc))
       (next-cmd state)))
 
 (defn jmp-back [state]
@@ -95,15 +82,15 @@
       (next-cmd state)
       (assoc state
              :pc
-             (match-jump-back (:code state) (:pc state)))))
+             (match-jmp (:code state) (:pc state) dec))))
 
 
-(defn dump-mem [mem dp]
+(defn dump-mem [mem addr]
   (str/join " "
-            (map #(if (= dp %)
+            (map #(if (= addr %)
                       (str \* (mem-read mem %) \*)
                       (mem-read mem %))
-                  (range (inc (apply max (conj (keys mem) dp)))))))
+                  (range (inc (apply max (conj (keys mem) addr)))))))
 
 (defn print-state [state]
   (println "mem:" (dump-mem (:mem state) (:addr state)))
@@ -153,5 +140,3 @@
 ;(execute-string ",>+>>>>++++++++++++++++++++++++++++++++++++++++++++>++++++++++++++++++++++++++++++++<<<<<<[>[>>>>>>+>+<<<<<<<-]>>>>>>>[<<<<<<<+>>>>>>>-]<[>++++++++++[-<-[>>+>+<<<-]>>>[<<<+>>>-]+<[>[-]<[-]]>[<<[>>>+<<<-]>>[-]]<<]>>>[>>+>+<<<-]>>>[<<<+>>>-]+<[>[-]<[-]]>[<<+>>[-]]<<<<<<<]>>>>>[++++++++++++++++++++++++++++++++++++++++++++++++.[-]]++++++++++<[->-<]>++++++++++++++++++++++++++++++++++++++++++++++++.[-]<<<<<<<<<<<<[>>>+>+<<<<-]>>>>[<<<<+>>>>-]<-[>>.>.<<<[-]]<<[>>+>+<<<-]>>>[<<<+>>>-]<<[<+>-]>[<+>-]<<<-]"
 ;                "\n")
 
-;(execute-string ".>.+.<." "")
-;(increase {:mem {} :addr 2 :pc 1})
