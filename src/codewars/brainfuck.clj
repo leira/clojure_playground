@@ -14,9 +14,9 @@
 
 ; TODOs
 ; x use map for memory, don't need to extend-mem every time
-; - pass mem dp code ip and input in parameters directly, save the getter every time
+; x pass mem dp code ip and input in parameters directly, save the getter every time
 ; - return output directly, use lazy-seq for output
-; * use loop inside function, rather than multifunction
+; x use loop inside function, rather than multifunction
 
 (defn mem-read [mem addr] (get mem addr 0))
 (defn mem-write [mem addr v] (assoc mem addr v))
@@ -34,56 +34,6 @@
           (inc pc)
           (recur nb' (op pc))))))
 
-(defn next-cmd [state]
-  (update state :pc inc))
-
-
-;; commands
-(defn move-right [state]
-  (next-cmd (update state :addr inc)))
-
-(defn move-left [state]
-  (next-cmd (update state :addr #(if (pos? %) (dec %) %))))
-
-(defn increase [state]
-  (next-cmd (assoc state :mem (mem-op (:mem state) (:addr state) inc))))
-
-(defn decrease [state]
-  (next-cmd (assoc state :mem (mem-op (:mem state) (:addr state) dec))))
-
-(defn output [state]
-  (next-cmd (update state
-                    :output
-                    conj
-                    (char (mem-read (:mem state)
-                                    (:addr state))))))
-
-(defn input [state]
-  (next-cmd (assoc state
-                   :mem
-                   (mem-write (:mem state)
-                              (:addr state)
-                              (int (if (empty? (:input state))
-                                       (throw (Exception. "No More Input"))
-                                       (first (:input state)))))
-                   :input (rest (:input state)))))
-
-(defn jmp-fwd [state]
-  (if (zero? (mem-read (:mem state)
-                       (:addr state)))
-      (assoc state
-             :pc
-             (match-jmp (:code state) (:pc state) inc))
-      (next-cmd state)))
-
-(defn jmp-back [state]
-  (if (zero? (mem-read (:mem state)
-                       (:addr state)))
-      (next-cmd state)
-      (assoc state
-             :pc
-             (match-jmp (:code state) (:pc state) dec))))
-
 
 (defn dump-mem [mem addr]
   (str/join " "
@@ -92,32 +42,39 @@
                       (mem-read mem %))
                   (range (inc (apply max (conj (keys mem) addr)))))))
 
-(defn print-state [state]
-  (println "mem:" (dump-mem (:mem state) (:addr state)))
-  (let [s (- (:pc state) 10)
+(defn print-state [code pc mem addr]
+  (println "mem:" (dump-mem mem addr))
+  (let [s (- pc 10)
         st (if (neg? s) 0 s)
-        e (+ (:pc state) 10)
-        ed (if (> e (count (:code state))) (count (:code state)) e)]
-    (println "code:(" (subs (:code state) st ed) ")")
-    (println "      " (apply str (conj (vec (repeat (- (:pc state) st) " ")) "^"))))
-  (println "output:" (:output state)))
+        e (+ pc 10)
+        ed (if (> e (count code)) (count code) e)]
+    (println "code:(" (subs code st ed) ")")
+    (println "      " (apply str (conj (vec (repeat (- pc st) " ")) "^")))))
 
 
-(defn execute [state]
-  ;(print-state state)
-  (if (>= (:pc state) (count (:code state)))
-      (:output state)
-      (recur ((case (get (:code state) (:pc state))
-                    \> move-right
-                    \< move-left
-                    \+ increase
-                    \- decrease
-                    \. output
-                    \, input
-                    \[ jmp-fwd
-                    \] jmp-back
-                    (throw (Exception. "Invalid Code")))
-              state))))
+(defn execute [code pc mem addr input output]
+  (print-state code pc mem addr)
+  (case (get code pc)
+    nil output
+    \> (recur code (inc pc) mem (inc addr) input output)
+    \< (recur code (inc pc) mem (dec addr) input output)
+    \+ (recur code (inc pc) (mem-op mem addr inc) addr input output)
+    \- (recur code (inc pc) (mem-op mem addr dec) addr input output)
+    \. (recur code (inc pc) mem addr input (conj output (char (mem-read mem addr))))
+    \, (when-let [c (first input)]
+         (recur code (inc pc) (mem-write mem addr (int c)) addr (rest input) output))
+    \[ (recur code
+              (if (zero? (mem-read mem addr))
+                  (match-jmp code pc inc)
+                  (inc pc))
+              mem addr input output)
+    \] (recur code
+              (if (zero? (mem-read mem addr))
+                  (inc pc)
+                  (match-jmp code pc dec))
+              mem addr input output)
+    (recur code (inc pc) mem addr input output)))
+
 
 (defn execute-string
   "Evaluate the Brainfuck source code in `source` using `input` as a source of
@@ -126,17 +83,8 @@
   Either returns a sequence of output characters, or `nil` if there was
   insufficient input."
   [source input]
-  (try
-   (str/join "" (execute {:code source
-                          :pc 0
-                          :mem {}
-                          :addr 0
-                          :input input
-                          :output []}))
-   (catch Exception e
-          (println (str "caught exception: " (.getMessage e)))
-          nil)))
+  (when-let [output (execute source 0 {} 0 input [])]
+    (str/join "" output)))
 
 ;(execute-string ",>+>>>>++++++++++++++++++++++++++++++++++++++++++++>++++++++++++++++++++++++++++++++<<<<<<[>[>>>>>>+>+<<<<<<<-]>>>>>>>[<<<<<<<+>>>>>>>-]<[>++++++++++[-<-[>>+>+<<<-]>>>[<<<+>>>-]+<[>[-]<[-]]>[<<[>>>+<<<-]>>[-]]<<]>>>[>>+>+<<<-]>>>[<<<+>>>-]+<[>[-]<[-]]>[<<+>>[-]]<<<<<<<]>>>>>[++++++++++++++++++++++++++++++++++++++++++++++++.[-]]++++++++++<[->-<]>++++++++++++++++++++++++++++++++++++++++++++++++.[-]<<<<<<<<<<<<[>>>+>+<<<<-]>>>>[<<<<+>>>>-]<-[>>.>.<<<[-]]<<[>>+>+<<<-]>>>[<<<+>>>-]<<[<+>-]>[<+>-]<<<-]"
 ;                "\n")
-
