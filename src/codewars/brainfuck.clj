@@ -12,12 +12,6 @@
 ;; [ if the byte at the data pointer is zero, then instead of moving the instruction pointer forward to the next command, jump it forward to the command after the matching ] command.
 ;; ] if the byte at the data pointer is nonzero, then instead of moving the instruction pointer forward to the next command, jump it back to the command after the matching [ command.
 
-; TODOs
-; x use map for memory, don't need to extend-mem every time
-; x pass mem dp code ip and input in parameters directly, save the getter every time
-; - return output directly, use lazy-seq for output
-; x use loop inside function, rather than multifunction
-
 (defn mem-read [mem addr] (get mem addr 0))
 (defn mem-write [mem addr v] (assoc mem addr v))
 (defn mem-op [mem addr op] (mem-write mem addr (mod (op (mem-read mem addr)) 256)))
@@ -35,6 +29,44 @@
           (recur nb' (op pc))))))
 
 
+(declare print-state)
+
+(defn execute [code pc mem addr input]
+  ;(print-state code pc mem addr)
+  (case (get code pc)
+    nil nil
+    \> (recur code (inc pc) mem (inc addr) input)
+    \< (recur code (inc pc) mem (dec addr) input)
+    \+ (recur code (inc pc) (mem-op mem addr inc) addr input)
+    \- (recur code (inc pc) (mem-op mem addr dec) addr input)
+    \. (cons (char (mem-read mem addr))
+             (lazy-seq (execute code (inc pc) mem addr input)))
+    \, (when-let [c (first input)]
+         (recur code (inc pc) (mem-write mem addr (int c)) addr (rest input)))
+    \[ (recur code
+              (if (zero? (mem-read mem addr))
+                  (match-jmp code pc inc)
+                  (inc pc))
+              mem addr input)
+    \] (recur code
+              (if (zero? (mem-read mem addr))
+                  (inc pc)
+                  (match-jmp code pc dec))
+              mem addr input)
+    (recur code (inc pc) mem addr input)))
+
+
+(defn execute-string
+  "Evaluate the Brainfuck source code in `source` using `input` as a source of
+  characters for the `,` input command.
+
+  Either returns a sequence of output characters, or `nil` if there was
+  insufficient input."
+  [source input]
+  (when-let [output (execute source 0 {} 0 input)]
+    (str/join "" output)))
+
+
 (defn dump-mem [mem addr]
   (str/join " "
             (map #(if (= addr %)
@@ -50,41 +82,3 @@
         ed (if (> e (count code)) (count code) e)]
     (println "code:(" (subs code st ed) ")")
     (println "      " (apply str (conj (vec (repeat (- pc st) " ")) "^")))))
-
-
-(defn execute [code pc mem addr input output]
-  (print-state code pc mem addr)
-  (case (get code pc)
-    nil output
-    \> (recur code (inc pc) mem (inc addr) input output)
-    \< (recur code (inc pc) mem (dec addr) input output)
-    \+ (recur code (inc pc) (mem-op mem addr inc) addr input output)
-    \- (recur code (inc pc) (mem-op mem addr dec) addr input output)
-    \. (recur code (inc pc) mem addr input (conj output (char (mem-read mem addr))))
-    \, (when-let [c (first input)]
-         (recur code (inc pc) (mem-write mem addr (int c)) addr (rest input) output))
-    \[ (recur code
-              (if (zero? (mem-read mem addr))
-                  (match-jmp code pc inc)
-                  (inc pc))
-              mem addr input output)
-    \] (recur code
-              (if (zero? (mem-read mem addr))
-                  (inc pc)
-                  (match-jmp code pc dec))
-              mem addr input output)
-    (recur code (inc pc) mem addr input output)))
-
-
-(defn execute-string
-  "Evaluate the Brainfuck source code in `source` using `input` as a source of
-  characters for the `,` input command.
-
-  Either returns a sequence of output characters, or `nil` if there was
-  insufficient input."
-  [source input]
-  (when-let [output (execute source 0 {} 0 input [])]
-    (str/join "" output)))
-
-;(execute-string ",>+>>>>++++++++++++++++++++++++++++++++++++++++++++>++++++++++++++++++++++++++++++++<<<<<<[>[>>>>>>+>+<<<<<<<-]>>>>>>>[<<<<<<<+>>>>>>>-]<[>++++++++++[-<-[>>+>+<<<-]>>>[<<<+>>>-]+<[>[-]<[-]]>[<<[>>>+<<<-]>>[-]]<<]>>>[>>+>+<<<-]>>>[<<<+>>>-]+<[>[-]<[-]]>[<<+>>[-]]<<<<<<<]>>>>>[++++++++++++++++++++++++++++++++++++++++++++++++.[-]]++++++++++<[->-<]>++++++++++++++++++++++++++++++++++++++++++++++++.[-]<<<<<<<<<<<<[>>>+>+<<<<-]>>>>[<<<<+>>>>-]<-[>>.>.<<<[-]]<<[>>+>+<<<-]>>>[<<<+>>>-]<<[<+>-]>[<+>-]<<<-]"
-;                "\n")
